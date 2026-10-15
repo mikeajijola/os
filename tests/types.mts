@@ -9,8 +9,8 @@ createEngine({ model: "fixture", apiKey: "fixture", contract });
 createAgent({ model: "fixture", apiKey: "fixture", contract, durability: memory() });
 browserEngine({ model: "fixture", apiKey: "fixture", contract });
 // @ts-expect-error A contract is required.
-createEngine({ model: "fixture" });
+createEngine({ model: "fixture", apiKey: "fixture" });
 // @ts-expect-error A contract is required for durable agents too.
-createAgent({ model: "fixture" });
+createAgent({ model: "fixture", apiKey: "fixture" });
 // @ts-expect-error Browser engines enforce the same contract requirement.
-browserEngine({ model: "fixture" });
+browserEngine({ model: "fixture", apiKey: "fixture" });
