@@ -2636,6 +2636,12 @@ fn handleInitialize(state: *ServerState, alloc: Allocator, msg: *jsonrpc.Message
         });
     };
     defer request.deinit(alloc);
+    if (request.work_contract_json == null) {
+        return state.writer.writeError(alloc, msg.id, .{
+            .code = ErrorCode.invalid_params,
+            .message = "om requires a work contract",
+        });
+    }
 
     var startup = loadConfiguredStartupState(state, alloc) catch |err| {
         const model_message = config_runtime.modelNotSelectedMessage(err);

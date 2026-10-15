@@ -2,17 +2,14 @@ import { access, readFile } from "node:fs/promises";
 import { closeSync } from "node:fs";
 import { createRequire } from "node:module";
 import { Socket } from "node:net";
-import { homedir, tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { CoreOutput } from "./core-output.js";
 import { loadModule, withModuleFailure } from "./wasm-module.js";
 import { fetchCleanupAction, cleanupTimeoutMs, cleanupByteLimit } from "./fetch-cleanup.js";
-import { createDurableAgentFactory, memory, wakeHandler } from "./durable.js";
-import { fxHarness } from "./fx-harness.js";
 import {
   createFxEngine as createWasmAgent,
-  createFxTerminal as createWasmTerminal,
   createMemoryPersistence,
   FxFencedError,
   FxJournalVersionError,
@@ -24,7 +21,7 @@ import {
   xtermAdapter,
 } from "./fx-sdk.js";
 
-export { createMemoryPersistence, encodeXtermKeyEvent, FxFencedError, FxJournalVersionError, fxSdkApiVersion, listModels, memory, supportsJspi, wakeHandler, xtermAdapter };
+export { createMemoryPersistence, encodeXtermKeyEvent, FxFencedError, FxJournalVersionError, fxSdkApiVersion, listModels, supportsJspi, xtermAdapter };
 export const libfxApiVersion = 3;
 const nativeCoreApiVersion = 4;
 
@@ -33,8 +30,7 @@ const fetchOperationApplied = 1;
 const fetchOperationBackpressure = 2;
 
 const nodeRequire = createRequire(import.meta.url);
-const defaultCoreWasm = new URL("./fx-core.wasm", import.meta.url);
-const defaultTermWasm = new URL("./fx-term.wasm", import.meta.url);
+const defaultCoreWasm = new URL("./om-core.wasm", import.meta.url);
 let nativeBackendPromise;
 const wasmFilePromises = new Map();
 
@@ -96,25 +92,25 @@ async function loadNativeCandidate(candidate) {
 function defaultNativeCandidate() {
   // Local path bindings let deployment tracers retain these assets in the generated CommonJS entry.
   if (process.platform === "linux" && process.arch === "x64") {
-    const asset = new URL("./libfx.linux-x64.node", import.meta.url);
+    const asset = new URL("./om.linux-x64.node", import.meta.url);
     if (asset.protocol === "") return fileURLToPath(bundledAssetUrl(asset));
     const path = fileURLToPath(asset);
     return path;
   }
   if (process.platform === "linux" && process.arch === "arm64") {
-    const asset = new URL("./libfx.linux-arm64.node", import.meta.url);
+    const asset = new URL("./om.linux-arm64.node", import.meta.url);
     if (asset.protocol === "") return fileURLToPath(bundledAssetUrl(asset));
     const path = fileURLToPath(asset);
     return path;
   }
   if (process.platform === "darwin" && process.arch === "x64") {
-    const asset = new URL("./libfx.darwin-x64.node", import.meta.url);
+    const asset = new URL("./om.darwin-x64.node", import.meta.url);
     if (asset.protocol === "") return fileURLToPath(bundledAssetUrl(asset));
     const path = fileURLToPath(asset);
     return path;
   }
   if (process.platform === "darwin" && process.arch === "arm64") {
-    const asset = new URL("./libfx.darwin-arm64.node", import.meta.url);
+    const asset = new URL("./om.darwin-arm64.node", import.meta.url);
     if (asset.protocol === "") return fileURLToPath(bundledAssetUrl(asset));
     const path = fileURLToPath(asset);
     return path;
@@ -270,84 +266,6 @@ function nativeFailureReason(result) {
       return reason(backendReasonCodes.disabledNative, "native addon loading is disabled");
     default:
       return reason(backendReasonCodes.nativeLoad, "native addon is unavailable", result.error);
-  }
-}
-
-function validateBackendInfoOptions(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new TypeError("getBackendInfo() options must be an object");
-  }
-  const { nativeAddon, backend = "auto", surface = "agent", ...options } = value;
-  for (const key of Object.keys(options)) {
-    if (key !== "wasm") {
-      throw new TypeError(`getBackendInfo() does not accept ${key}`);
-    }
-  }
-  if (!new Set(["agent", "terminal"]).has(surface)) {
-    throw new TypeError('surface must be "agent" or "terminal"');
-  }
-  if (!new Set(["auto", "native", "wasm"]).has(backend)) {
-    throw new TypeError('backend must be "auto", "native", or "wasm"');
-  }
-  if (nativeAddon !== undefined && nativeAddon !== false &&
-    typeof nativeAddon !== "string" && !(nativeAddon instanceof URL) &&
-    (typeof nativeAddon !== "object" || nativeAddon === null)) {
-    throw new TypeError("nativeAddon must be a module, path, URL, false, or undefined");
-  }
-  const validWasm = options.wasm === undefined || typeof options.wasm === "string" || options.wasm instanceof URL ||
-    options.wasm instanceof Promise || options.wasm instanceof WebAssembly.Module || options.wasm instanceof Response ||
-    options.wasm instanceof ArrayBuffer || ArrayBuffer.isView(options.wasm);
-  if (Object.hasOwn(options, "wasm") && !validWasm) {
-    throw new TypeError("wasm must be a URL, Response, ArrayBuffer, typed array, or WebAssembly.Module");
-  }
-  return { ...options, surface, backend, nativeAddon };
-}
-
-export async function getBackendInfo(value = {}) {
-  const { surface, backend, nativeAddon, wasm } = validateBackendInfoOptions(value);
-  const attempts = [];
-  if (backend !== "wasm") {
-    const native = await resolveNativeBackend(nativeAddon);
-    const nativeMethod = surface === "agent" ? "createCore" : "createFxTerminal";
-    if (typeof native.backend?.[nativeMethod] === "function") {
-      attempts.push({ backend: "native", available: true, reason: null });
-      return { surface, backend: "native", attempts };
-    }
-    const failureReason = native.backend
-      ? reason(backendReasonCodes.missingSurface, `native addon does not provide ${nativeMethod}()`)
-      : nativeFailureReason(native);
-    attempts.push({ backend: "native", available: false, reason: failureReason });
-    if (backend === "native") return { surface, backend: "unavailable", attempts };
-  }
-
-  if (!supportsJspi()) {
-    attempts.push({
-      backend: "wasm-jspi",
-      available: false,
-      reason: reason(
-        backendReasonCodes.jspiUnavailable,
-        "WebAssembly backend requires JavaScript Promise Integration (JSPI)",
-      ),
-    });
-    return { surface, backend: "unavailable", attempts };
-  }
-  const defaultWasm = surface === "agent" ? defaultCoreWasm : defaultTermWasm;
-  const wasmSource = wasm ?? defaultWasm;
-  try {
-    await loadModule(await wasmInput(wasmSource));
-    attempts.push({ backend: "wasm-jspi", available: true, reason: null });
-    return { surface, backend: "wasm-jspi", attempts };
-  } catch (error) {
-    attempts.push({
-      backend: "wasm-jspi",
-      available: false,
-      reason: reason(
-        backendReasonCodes.wasmLoad,
-        `WebAssembly asset failed to load or compile: ${error?.message ?? String(error)}`,
-        error,
-      ),
-    });
-    return { surface, backend: "unavailable", attempts };
   }
 }
 
@@ -670,56 +588,4 @@ export async function createFxEngine(options = {}) {
     defaultCoreWasm,
     options,
   );
-}
-
-// The durability a session gets when the caller names none: Vercel's World
-// on Vercel, otherwise files in the temporary directory. Each is its own
-// module, loaded only here: a bundler copies the file the URL names and
-// leaves the import itself to Node.
-// Agents created without a durability share one for each place sessions
-// live, as agents passed one durability do, so they can send each other's
-// prompts on.
-const environments = new Map();
-function environmentDurability() {
-  const dir = process.env.VERCEL ? null : process.env.FX_SESSIONS_DIR || resolve(tmpdir(), "libfx", "sessions");
-  const key = dir ?? "vercel";
-  if (!environments.has(key)) {
-    environments.set(key, chooseEnvironmentDurability(dir).catch((error) => {
-      environments.delete(key);
-      throw error;
-    }));
-  }
-  return environments.get(key);
-}
-
-async function chooseEnvironmentDurability(dir) {
-  const load = (asset) => import(/* webpackIgnore: true */ /* turbopackIgnore: true */ (asset.protocol === "" ? bundledAssetUrl(asset) : asset).href);
-  if (dir === null) {
-    const { vercel } = await load(new URL("./durable/vercel.mjs", import.meta.url));
-    return vercel();
-  }
-  const { local } = await load(new URL("./durable/local.mjs", import.meta.url));
-  return local({ dir });
-}
-
-/**
- * An agent whose sessions survive crashes, timeouts and redeployments. It
- * does no I/O until a session is used.
- */
-export const createFxAgent = createDurableAgentFactory({
-  name: "createFxAgent",
-  label: "fx agent",
-  defaultDurability: environmentDurability,
-  harness: fxHarness({
-    createEngine: createFxEngine,
-    // An explicit key, then the durability's own credential, such as a
-    // Vercel deployment's OIDC token, then the one in the environment.
-    defaultApiKey: async (durability) => process.env.AI_GATEWAY_API_KEY ||
-      (await Promise.resolve(durability?.gatewayKey?.()).catch(() => undefined)) ||
-      process.env.VERCEL_OIDC_TOKEN || undefined,
-  }),
-});
-
-export function createFxTerminal(options = {}) {
-  return createWithFallback("terminal", "createFxTerminal", createWasmTerminal, defaultTermWasm, options);
 }

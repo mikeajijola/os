@@ -2,12 +2,12 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createFxAgent, createFxEngine, memory } from '../node.js';
+import { createAgent as createFxAgent, createEngine as createFxEngine, memory } from '../om-node.js';
 
 const backend = process.argv[2] || 'native';
 const platform = backend === 'wasm'
-  ? { backend, wasm: await readFile(resolve('zig-out/bin/fx-core.wasm')) }
-  : { backend, nativeAddon: resolve('zig-out/lib/libfx.node') };
+  ? { backend, wasm: await readFile(resolve('zig-out/bin/om-core.wasm')) }
+  : { backend, nativeAddon: resolve('zig-out/lib/om.node') };
 const definition = {
   id: 'report', version: 1, objective: 'Save and verify the report',
   obligations: [{ id: 'saved', description: 'The report was saved and verified' }],
@@ -66,7 +66,7 @@ try {
 } finally { await agent.close(); }
 
 for (const contract of [undefined, { ...f.options.contract, version: 2 }]) {
-  await assert.rejects(createFxEngine({ ...f.options, contract, checkpoint }), /same work contract/);
+  await assert.rejects(createFxEngine({ ...f.options, contract, checkpoint }), /same work contract|requires a work contract/);
 }
 agent = await createFxEngine({ ...f.options, checkpoint });
 try { assert.equal((await consume(agent, 'Check the saved result')).stopReason, 'end_turn'); }
@@ -181,10 +181,9 @@ for (const initialStatus of ['pending', 'met', 'blocked']) {
 }
 
 const ordinary = fixture();
-agent = await createFxEngine(ordinary.options);
-try { assert.equal((await consume(agent)).stopReason, 'end_turn'); }
-finally { await agent.close(); }
-assert.equal(ordinary.counts().requests, 1);
+await assert.rejects(createFxEngine(ordinary.options), /requires a work contract/);
+assert.throws(() => createFxAgent(ordinary.options), /requires a work contract/);
+assert.equal(ordinary.counts().requests, 0);
 await assert.rejects(createFxEngine({ ...ordinary.options, contract: { ...definition, obligations: [], assess: () => report('met') } }), /initialize/);
-await assert.rejects(createFxEngine({ ...ordinary.options, tools: [{ ...ordinary.options.tools[0], name: '__libfx_contract_assess' }] }), /Reserved/);
-console.log(`${backend}: contract continuation, fulfilment, blockers, invalid assessments, cancellation, restore, and ordinary turns passed`);
+await assert.rejects(createFxEngine({ ...f.options, tools: [{ ...ordinary.options.tools[0], name: '__libfx_contract_assess' }] }), /Reserved/);
+console.log(`${backend}: contracts, evidence, continuation, blockers, provider tools, steering, cancellation, restore, and required-contract checks passed`);

@@ -449,7 +449,7 @@ export interface FxWorkContract extends FxWorkContractDefinition {
 /** Options `createFxAgent()` and `createFxEngine()` share. */
 export interface FxSharedOptions<Event> {
   /** Zig continues normal model stops until the host establishes fulfilment or a blocker. */
-  contract?: FxWorkContract;
+  contract: FxWorkContract;
   /** Host-owned instrumentation of native and Wasm execution. Disabled by default. */
   hooks?: FxHooks;
   /** The complete host-owned system context, up to 64 KiB of UTF-8. An array is joined with blank lines. */
@@ -758,7 +758,7 @@ export type FxAgentOptions = Omit<FxSharedOptions<FxAgentEvent>, "tools"> & FxMo
   tools?: FxAgentTools;
   /** The AI Gateway credential. Without it, libfx uses `AI_GATEWAY_API_KEY`, then on Vercel the deployment's OIDC token. */
   apiKey?: string | undefined;
-  /** Where sessions live. Without it, libfx picks one from the environment. */
+  /** Where sessions live. om defaults to an in-memory store. */
   durability?: Durability | undefined;
   /** Checkpoint bytes the agent's new sessions start from. */
   checkpoint?: FxBytes;

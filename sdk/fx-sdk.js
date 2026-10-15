@@ -2248,6 +2248,7 @@ function base64ToBytes(value) {
  */
 export async function createFxEngine(options = {}) {
   options = normalizeAgentOptions(options);
+  if (!options.contract) throw new TypeError("om requires a work contract");
   const hostTools = normalizeHostTools(options.tools);
   const instructions = normalizeInstructions(options.instructions);
   let contract;

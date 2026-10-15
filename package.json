@@ -1,0 +1,60 @@
+{
+  "name": "@mikeajijola/om",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A contract-enforcing Zig agent engine for native and WebAssembly hosts",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mikeajijola/om.git"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "node": {
+        "types": "./sdk/types/om-node.d.ts",
+        "default": "./sdk/om-node.js"
+      },
+      "default": {
+        "types": "./sdk/types/om-browser.d.ts",
+        "default": "./sdk/om-browser.js"
+      }
+    },
+    "./node": {
+      "types": "./sdk/types/om-node.d.ts",
+      "default": "./sdk/om-node.js"
+    },
+    "./browser": {
+      "types": "./sdk/types/om-browser.d.ts",
+      "default": "./sdk/om-browser.js"
+    },
+    "./durable-world": {
+      "types": "./sdk/types/durable-world.d.ts",
+      "default": "./sdk/durable/world.mjs"
+    }
+  },
+  "scripts": {
+    "build:native": "zig build native && node scripts/install-artifacts.mjs native",
+    "build:wasm": "zig build wasm && node scripts/install-artifacts.mjs wasm",
+    "test:native": "node sdk/tests/test-agent-contract.mjs native && node tests/kernel-contract.mjs",
+    "test:wasm": "node --experimental-wasm-jspi sdk/tests/test-agent-contract.mjs wasm",
+    "test:types": "tsc --noEmit --strict --module NodeNext --target ES2022 tests/types.mts",
+    "test": "npm run test:native && npm run test:wasm && npm run test:types"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "files": [
+    "sdk/*.js",
+    "sdk/*.node",
+    "sdk/om-core.wasm",
+    "sdk/types",
+    "sdk/durable/world.mjs",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md"
+  ]
+}

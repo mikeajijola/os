@@ -1,304 +1,22 @@
 const std = @import("std");
-
 const UpdateChannel = enum { stable, dev };
-
-const WasmSurface = enum {
-    none,
-    core,
-    term,
-};
-
-const PgsoArtifact = enum {
-    fx,
-    file_index,
-    ui_activity,
-    approval_review,
-};
-
-const NapiSurface = enum {
-    none,
-    core,
-};
+const WasmSurface = enum { none, core };
+const NapiSurface = enum { none, core };
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
-    const pgso_artifact = b.option(
-        PgsoArtifact,
-        "pgso-artifact",
-        "Emit ReleaseSafe LLVM bitcode for one PGO/PGSO artifact",
-    );
-    const wasm_surface = b.option(
-        WasmSurface,
-        "wasm-surface",
-        "Build a WASI WebAssembly surface for JavaScript hosts (core or term)",
-    ) orelse .none;
-    const napi_surface = b.option(
-        NapiSurface,
-        "napi-surface",
-        "Build a Node-API addon surface (core)",
-    ) orelse .none;
+    const commit = readGitCommit(b);
+    addNapiArtifact(b, .core, target, commit, "0.1.0", .dev);
+    addWasmArtifact(b, .core, commit, "0.1.0", .dev);
 
-    const git_commit = readGitCommit(b);
-    const app_version = readAppVersion(b);
-    const update_channel = b.option(UpdateChannel, "update-channel", "Build update channel (stable or dev)") orelse .stable;
-
-    const build_options = b.addOptions();
-    build_options.addOption([]const u8, "git_commit", git_commit);
-    build_options.addOption([]const u8, "app_version", app_version);
-    build_options.addOption([]const u8, "update_channel", @tagName(update_channel));
-    build_options.addOption(WasmSurface, "wasm_surface", .none);
-
-    const exe = b.addExecutable(.{
-        .name = "fx",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-            .stack_check = false,
-            .stack_protector = false,
-            .omit_frame_pointer = true,
-            .unwind_tables = .none,
-            .error_tracing = false,
-            .strip = optimize != .debug,
-        }),
-    });
-    exe.root_module.addImport("build_options", build_options.createModule());
-    const session_manager = addSessionManager(b, exe.root_module, target, optimize, null);
-
-    b.installArtifact(exe);
-
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-    run_cmd.addPassthruArgs();
-
-    const run_step = b.step("run", "Run fx");
-    run_step.dependOn(&run_cmd.step);
-
-    const exe_tests = b.addTest(.{
-        .root_module = exe.root_module,
-    });
-    const run_exe_tests = b.addRunArtifact(exe_tests);
-    run_exe_tests.step.dependOn(b.getInstallStep());
-    // Tests launch the installed fx binary, and the session boundary test
-    // walks the source tree.
-    const test_paths = b.addOptions();
-    test_paths.addOptionPathUntracked("product_exe", b.graph.path(.install_bin, "fx"));
-    test_paths.addOptionPathUntracked("source_root", b.path("src"));
-    exe.root_module.addImport("test_paths", test_paths.createModule());
-
-    // The session manager's own tests, as fx compiles it (no hooks).
-    const session_manager_tests = b.addTest(.{ .root_module = session_manager });
-
-    const run_session_manager_tests = b.addRunArtifact(session_manager_tests);
-    const session_manager_test_step = b.step("test-session-manager", "Run the session manager's tests");
-    session_manager_test_step.dependOn(&run_session_manager_tests.step);
-
-    const test_step = b.step("test", "Run tests");
-    test_step.dependOn(&run_exe_tests.step);
-    test_step.dependOn(&run_session_manager_tests.step);
-
-    if (wasm_surface != .none) {
-        addWasmArtifact(b, wasm_surface, git_commit, app_version, update_channel);
-    }
-    if (napi_surface != .none) {
-        addNapiArtifact(b, napi_surface, target, git_commit, app_version, update_channel);
-    }
-
-    const mcp_test_exports = b.createModule(.{
-        .root_source_file = b.path("src/mcp_test_exports.zig"),
+    const contract = b.addModule("om_contract", .{
+        .root_source_file = b.path("src/core/agent/runtime/work_contract.zig"),
         .target = target,
-        .optimize = optimize,
-        .link_libc = true,
+        .optimize = .safe,
     });
-    mcp_test_exports.addImport("build_options", build_options.createModule());
-    const mcp_dispatcher_e2e = b.addExecutable(.{
-        .name = "mcp-stdio-dispatcher-driver",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path(
-                "tests/e2e/fixtures/mcp-stdio-dispatcher-driver.zig",
-            ),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        }),
-    });
-    mcp_dispatcher_e2e.root_module.addImport(
-        "mcp_test_exports",
-        mcp_test_exports,
-    );
-    const run_mcp_dispatcher_e2e = b.addRunArtifact(mcp_dispatcher_e2e);
-    run_mcp_dispatcher_e2e.addPassthruArgs();
-    const mcp_dispatcher_e2e_step = b.step(
-        "run-mcp-stdio-dispatcher-e2e",
-        "Run the MCP stdio dispatcher E2E driver",
-    );
-    mcp_dispatcher_e2e_step.dependOn(&run_mcp_dispatcher_e2e.step);
-    const build_mcp_dispatcher_e2e_step = b.step(
-        "build-mcp-stdio-dispatcher-e2e",
-        "Build the MCP stdio dispatcher E2E driver",
-    );
-    build_mcp_dispatcher_e2e_step.dependOn(&mcp_dispatcher_e2e.step);
-
-    // --- file_index search benchmark ---
-    const benchmark_exports_mod = b.createModule(.{
-        .root_source_file = b.path("src/benchmark_exports.zig"),
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    });
-    const file_index_bench = b.addExecutable(.{
-        .name = "file-index-bench",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("benchmarks/file_index_bench.zig"),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        }),
-    });
-    file_index_bench.root_module.addImport("file_index", benchmark_exports_mod);
-    const install_bench = b.addInstallArtifact(file_index_bench, .{});
-    const bench_step = b.step("bench-file-index", "Build file_index search benchmark");
-    bench_step.dependOn(&install_bench.step);
-
-    const run_bench = b.addRunArtifact(file_index_bench);
-    run_bench.step.dependOn(&install_bench.step);
-    run_bench.addPassthruArgs();
-    const run_bench_step = b.step("run-bench-file-index", "Build and run file_index search benchmark");
-    run_bench_step.dependOn(&run_bench.step);
-
-    // --- UI activity progress benchmark ---
-    const ui_activity_bench = b.addExecutable(.{
-        .name = "ui-activity-progress-bench",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("benchmarks/activity_progress.zig"),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        }),
-    });
-    ui_activity_bench.root_module.addImport(
-        "benchmark_exports",
-        benchmark_exports_mod,
-    );
-    const install_ui_activity_bench = b.addInstallArtifact(ui_activity_bench, .{});
-    const ui_activity_bench_step = b.step(
-        "bench-ui-activity",
-        "Build the UI activity progress benchmark",
-    );
-    ui_activity_bench_step.dependOn(&install_ui_activity_bench.step);
-
-    const run_ui_activity_bench = b.addRunArtifact(ui_activity_bench);
-    run_ui_activity_bench.step.dependOn(&install_ui_activity_bench.step);
-    const run_ui_activity_bench_step = b.step(
-        "run-bench-ui-activity",
-        "Build and run the UI activity progress benchmark",
-    );
-    run_ui_activity_bench_step.dependOn(&run_ui_activity_bench.step);
-
-    const ui_activity_bench_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("benchmarks/activity_progress.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    ui_activity_bench_tests.root_module.addImport(
-        "benchmark_exports",
-        benchmark_exports_mod,
-    );
-    const run_ui_activity_bench_tests = b.addRunArtifact(ui_activity_bench_tests);
-    test_step.dependOn(&run_ui_activity_bench_tests.step);
-    const test_ui_activity_bench_step = b.step(
-        "test-ui-activity-benchmark",
-        "Run UI activity benchmark policy tests",
-    );
-    test_ui_activity_bench_step.dependOn(&run_ui_activity_bench_tests.step);
-
-    // --- file-diff approval review benchmark ---
-    const approval_review_bench = b.addExecutable(.{
-        .name = "approval-review-bench",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("benchmarks/approval_review.zig"),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        }),
-    });
-    approval_review_bench.root_module.addImport(
-        "benchmark_exports",
-        benchmark_exports_mod,
-    );
-    const install_approval_review_bench = b.addInstallArtifact(
-        approval_review_bench,
-        .{},
-    );
-    const approval_review_bench_step = b.step(
-        "bench-approval-review",
-        "Build the file-diff approval review benchmark",
-    );
-    approval_review_bench_step.dependOn(&install_approval_review_bench.step);
-
-    const run_approval_review_bench = b.addRunArtifact(approval_review_bench);
-    run_approval_review_bench.step.dependOn(&install_approval_review_bench.step);
-    run_approval_review_bench.addPassthruArgs();
-    const run_approval_review_bench_step = b.step(
-        "run-bench-approval-review",
-        "Build and run the file-diff approval review benchmark",
-    );
-    run_approval_review_bench_step.dependOn(&run_approval_review_bench.step);
-
-    const approval_review_bench_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("benchmarks/approval_review.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    approval_review_bench_tests.root_module.addImport(
-        "benchmark_exports",
-        benchmark_exports_mod,
-    );
-    const run_approval_review_bench_tests = b.addRunArtifact(
-        approval_review_bench_tests,
-    );
-    const test_approval_review_bench_step = b.step(
-        "test-approval-review-benchmark",
-        "Run file-diff approval review benchmark qualification tests",
-    );
-    test_approval_review_bench_step.dependOn(
-        &run_approval_review_bench_tests.step,
-    );
-
-    const pgso_ir_step = b.step(
-        "pgso-ir",
-        "Emit selected ReleaseSafe LLVM bitcode for PGO/PGSO qualification",
-    );
-    if (pgso_artifact) |artifact| {
-        const selected: *std.Build.Step.Compile = switch (artifact) {
-            .fx => exe,
-            .file_index => file_index_bench,
-            .ui_activity => ui_activity_bench,
-            .approval_review => approval_review_bench,
-        };
-        const output_name = switch (artifact) {
-            .fx => "pgso/fx.bc",
-            .file_index => "pgso/file-index.bc",
-            .ui_activity => "pgso/ui-activity.bc",
-            .approval_review => "pgso/approval-review.bc",
-        };
-        const install_ir = b.addInstallFile(
-            selected.getEmittedLlvmBc(),
-            output_name,
-        );
-        pgso_ir_step.dependOn(&install_ir.step);
-    } else {
-        const missing_artifact = b.addFail(
-            "pgso-ir requires -Dpgso-artifact",
-        );
-        pgso_ir_step.dependOn(&missing_artifact.step);
-    }
+    const tests = b.addTest(.{ .root_module = contract });
+    const run = b.addRunArtifact(tests);
+    b.step("test", "Test contract validation and disposition").dependOn(&run.step);
 }
 
 fn addWasmArtifact(
@@ -313,13 +31,11 @@ fn addWasmArtifact(
         .os_tag = .wasi,
     });
     const name = switch (surface) {
-        .core => "fx-core",
-        .term => "fx-term",
+        .core => "om-core",
         .none => unreachable,
     };
     const description = switch (surface) {
-        .core => "Build the headless fx WebAssembly artifact",
-        .term => "Build the terminal fx WebAssembly artifact",
+        .core => "Build the headless om WebAssembly artifact",
         .none => unreachable,
     };
 
@@ -331,7 +47,6 @@ fn addWasmArtifact(
 
     const wasm_root = switch (surface) {
         .core => "src/wasm_core_main.zig",
-        .term => "src/wasm_term_main.zig",
         .none => unreachable,
     };
     const wasm_exe = b.addExecutable(.{
@@ -355,7 +70,7 @@ fn addWasmArtifact(
     _ = addSessionManager(b, wasm_exe.root_module, wasm_target, .small, true);
 
     const install_wasm = b.addInstallArtifact(wasm_exe, .{});
-    const wasm_step = b.step(name ++ "-wasm", description);
+    const wasm_step = b.step("wasm", description);
     wasm_step.dependOn(&install_wasm.step);
     b.getInstallStep().dependOn(&install_wasm.step);
 }
@@ -379,7 +94,7 @@ fn addNapiArtifact(
         .none => unreachable,
     };
     const lib = b.addLibrary(.{
-        .name = "libfx",
+        .name = "om",
         .linkage = .dynamic,
         .root_module = b.createModule(.{
             .root_source_file = b.path(root),
@@ -405,8 +120,8 @@ fn addNapiArtifact(
     lib.root_module.addImport("node_api", node_api.createModule());
     lib.linker_allow_shlib_undefined = true;
 
-    const install = b.addInstallArtifact(lib, .{ .dest_sub_path = "libfx.node" });
-    const step = b.step("libfx-napi", "Build the libfx Node-API core addon");
+    const install = b.addInstallArtifact(lib, .{ .dest_sub_path = "om.node" });
+    const step = b.step("native", "Build the om Node-API core addon");
     step.dependOn(&install.step);
     b.getInstallStep().dependOn(&install.step);
 }
@@ -462,20 +177,4 @@ fn addSessionManager(
     module.addImport("build_options", options.createModule());
     importer.addImport("session_manager", module);
     return module;
-}
-
-fn readAppVersion(b: *std.Build) []const u8 {
-    b.dependOnFileContents(b.path("src/main.zig"));
-    const main_path = b.pathJoin(&.{ b.root.sub_path, "src/main.zig" });
-    const bytes = b.root.root_dir.handle.readFileAlloc(b.graph.io, main_path, b.allocator, .limited(1024 * 1024)) catch
-        @panic("could not read src/main.zig to resolve app version");
-    defer b.allocator.free(bytes);
-
-    const prefix = "pub const version = \"";
-    const start = (std.mem.find(u8, bytes, prefix) orelse
-        @panic("could not find pub const version in src/main.zig")) + prefix.len;
-    const end_rel = std.mem.findScalar(u8, bytes[start..], '"') orelse
-        @panic("could not parse pub const version in src/main.zig");
-    return b.allocator.dupe(u8, bytes[start .. start + end_rel]) catch
-        @panic("could not allocate app version");
 }
