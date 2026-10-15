@@ -2639,7 +2639,7 @@ fn handleInitialize(state: *ServerState, alloc: Allocator, msg: *jsonrpc.Message
     if (request.work_contract_json == null) {
         return state.writer.writeError(alloc, msg.id, .{
             .code = ErrorCode.invalid_params,
-            .message = "om requires a work contract",
+            .message = "os requires a work contract",
         });
     }
 

@@ -1,6 +1,6 @@
-# om
+# os
 
-om is a headless Zig agent engine whose completion depends on a host-verified
+os is a headless Zig agent engine whose completion depends on a host-verified
 contract. It is extracted from the contract-enforcing libfx fork, with native
 Node-API and WebAssembly builds from the same runtime.
 
@@ -47,19 +47,19 @@ open `examples/browser.html`:
 python3 -m http.server 8080
 ```
 
-Native output is `zig-out/lib/om.node`; WASM output is
-`zig-out/bin/om-core.wasm`. The npm build scripts copy these into `sdk/` for the
+Native output is `zig-out/lib/os.node`; WASM output is
+`zig-out/bin/os-core.wasm`. The npm build scripts copy these into `sdk/` for the
 default loaders. Generated binaries are not committed or published.
 
 ## Use the engine
 
-The package exposes ESM entry points at `@mikeajijola/om`,
-`@mikeajijola/om/node`, and `@mikeajijola/om/browser`. The root import selects
+The package exposes ESM entry points at `@mikeajijola/os`,
+`@mikeajijola/os/node`, and `@mikeajijola/os/browser`. The root import selects
 Node or browser behavior. Build the artifacts before installing this repository
-as a local dependency with `npm install /path/to/om`.
+as a local dependency with `npm install /path/to/os`.
 
 ```js
-import { createEngine } from "@mikeajijola/om";
+import { createEngine } from "@mikeajijola/os";
 
 // reportTools and reportStore are supplied by your application.
 const engine = await createEngine({
@@ -97,7 +97,7 @@ try {
 
 `createAgent(options)` runs managed sessions over the same engines. Its default
 store is in-memory and does not survive process exit. Pass a `durability` adapter
-for retained sessions; `@mikeajijola/om/durable-world` adapts a World supplied by
+for retained sessions; `@mikeajijola/os/durable-world` adapts a World supplied by
 your application. `createEngine()` provides one session and explicit checkpoints.
 The application owns the evidence store in either case.
 
@@ -117,14 +117,14 @@ and rendering modules remain internal dependencies of ACP initialization; this
 is not a rewrite of the runtime into a smaller kernel.
 
 Internal fx names in wire messages, checkpoint metadata, and shared source files
-remain for compatibility. The public package and build artifacts are named om.
+remain for compatibility. The public package and build artifacts are named os.
 The original fx repository is unchanged by this extraction.
 
 ## Provenance and license
 
 The extraction starts at contract-fork commit
 `0ba49112c2d2a2e3aa78fb1046367f0ea7c0c860`, based on upstream fx commit
-`2f391eaed8f384787078986d74c4f3f91ec25ac7`. Git history is retained. om adds its
+`2f391eaed8f384787078986d74c4f3f91ec25ac7`. Git history is retained. os adds its
 own build, API, tests, and mandatory-contract initialization.
 
 Licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE) and

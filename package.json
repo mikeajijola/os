@@ -1,5 +1,5 @@
 {
-  "name": "@mikeajijola/om",
+  "name": "@mikeajijola/os",
   "version": "0.1.0",
   "private": true,
   "description": "A contract-enforcing Zig agent engine for native and WebAssembly hosts",
@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mikeajijola/om.git"
+    "url": "https://github.com/mikeajijola/os.git"
   },
   "engines": {
     "node": ">=24"
@@ -15,21 +15,21 @@
   "exports": {
     ".": {
       "node": {
-        "types": "./sdk/types/om-node.d.ts",
-        "default": "./sdk/om-node.js"
+        "types": "./sdk/types/os-node.d.ts",
+        "default": "./sdk/os-node.js"
       },
       "default": {
-        "types": "./sdk/types/om-browser.d.ts",
-        "default": "./sdk/om-browser.js"
+        "types": "./sdk/types/os-browser.d.ts",
+        "default": "./sdk/os-browser.js"
       }
     },
     "./node": {
-      "types": "./sdk/types/om-node.d.ts",
-      "default": "./sdk/om-node.js"
+      "types": "./sdk/types/os-node.d.ts",
+      "default": "./sdk/os-node.js"
     },
     "./browser": {
-      "types": "./sdk/types/om-browser.d.ts",
-      "default": "./sdk/om-browser.js"
+      "types": "./sdk/types/os-browser.d.ts",
+      "default": "./sdk/os-browser.js"
     },
     "./durable-world": {
       "types": "./sdk/types/durable-world.d.ts",
@@ -50,7 +50,7 @@
   "files": [
     "sdk/*.js",
     "sdk/*.node",
-    "sdk/om-core.wasm",
+    "sdk/os-core.wasm",
     "sdk/types",
     "sdk/durable/world.mjs",
     "LICENSE",

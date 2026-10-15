@@ -1,10 +1,10 @@
-om incorporates source code from fx (https://github.com/vercel-labs/fx),
+os incorporates source code from fx (https://github.com/vercel-labs/fx),
 licensed under the Apache License, Version 2.0.
 
 Extraction source: mikeajijola/fx commit 0ba49112c2d2a2e3aa78fb1046367f0ea7c0c860.
 Upstream base: vercel-labs/fx commit 2f391eaed8f384787078986d74c4f3f91ec25ac7.
 
-om modifies the build, public SDK, initialization requirements, and supporting
+os modifies the build, public SDK, initialization requirements, and supporting
 version references to provide a standalone contract-enforcing engine.
 The original copyright notices and git history are retained.
 See LICENSE and THIRD_PARTY_NOTICES.md for license terms and bundled notices.

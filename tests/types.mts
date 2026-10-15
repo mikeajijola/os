@@ -1,5 +1,5 @@
-import { createAgent, createEngine, memory, type Contract } from "@mikeajijola/om";
-import { createEngine as browserEngine } from "@mikeajijola/om/browser";
+import { createAgent, createEngine, memory, type Contract } from "@mikeajijola/os";
+import { createEngine as browserEngine } from "@mikeajijola/os/browser";
 const contract: Contract = {
   id: "report", version: 1, objective: "Save report",
   obligations: [{ id: "saved", description: "Report exists" }],

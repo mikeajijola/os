@@ -30,7 +30,7 @@ const fetchOperationApplied = 1;
 const fetchOperationBackpressure = 2;
 
 const nodeRequire = createRequire(import.meta.url);
-const defaultCoreWasm = new URL("./om-core.wasm", import.meta.url);
+const defaultCoreWasm = new URL("./os-core.wasm", import.meta.url);
 let nativeBackendPromise;
 const wasmFilePromises = new Map();
 
@@ -92,25 +92,25 @@ async function loadNativeCandidate(candidate) {
 function defaultNativeCandidate() {
   // Local path bindings let deployment tracers retain these assets in the generated CommonJS entry.
   if (process.platform === "linux" && process.arch === "x64") {
-    const asset = new URL("./om.linux-x64.node", import.meta.url);
+    const asset = new URL("./os.linux-x64.node", import.meta.url);
     if (asset.protocol === "") return fileURLToPath(bundledAssetUrl(asset));
     const path = fileURLToPath(asset);
     return path;
   }
   if (process.platform === "linux" && process.arch === "arm64") {
-    const asset = new URL("./om.linux-arm64.node", import.meta.url);
+    const asset = new URL("./os.linux-arm64.node", import.meta.url);
     if (asset.protocol === "") return fileURLToPath(bundledAssetUrl(asset));
     const path = fileURLToPath(asset);
     return path;
   }
   if (process.platform === "darwin" && process.arch === "x64") {
-    const asset = new URL("./om.darwin-x64.node", import.meta.url);
+    const asset = new URL("./os.darwin-x64.node", import.meta.url);
     if (asset.protocol === "") return fileURLToPath(bundledAssetUrl(asset));
     const path = fileURLToPath(asset);
     return path;
   }
   if (process.platform === "darwin" && process.arch === "arm64") {
-    const asset = new URL("./om.darwin-arm64.node", import.meta.url);
+    const asset = new URL("./os.darwin-arm64.node", import.meta.url);
     if (asset.protocol === "") return fileURLToPath(bundledAssetUrl(asset));
     const path = fileURLToPath(asset);
     return path;

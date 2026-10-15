@@ -2,9 +2,9 @@
 export async function runScenario(createEngine, options = {}) {
   let requests = 0, writes = 0, assessments = 0;
   const engine = await createEngine({
-    ...options, model: "om/fixture", apiKey: "fixture",
+    ...options, model: "os/fixture", apiKey: "fixture",
     fetch(_url, init = {}) {
-      if (init.method === "GET") return Response.json({ data: [{ id: "om/fixture", type: "language", tags: ["tool-use"] }] });
+      if (init.method === "GET") return Response.json({ data: [{ id: "os/fixture", type: "language", tags: ["tool-use"] }] });
       requests++;
       const events = requests === 2
         ? [{ type: "tool-call", toolCallId: "save-1", toolName: "save_report", input: {} }, { type: "finish", finishReason: { unified: "tool-calls", raw: "tool-calls" } }]

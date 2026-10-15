@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) void {
     addNapiArtifact(b, .core, target, commit, "0.1.0", .dev);
     addWasmArtifact(b, .core, commit, "0.1.0", .dev);
 
-    const contract = b.addModule("om_contract", .{
+    const contract = b.addModule("os_contract", .{
         .root_source_file = b.path("src/core/agent/runtime/work_contract.zig"),
         .target = target,
         .optimize = .safe,
@@ -31,11 +31,11 @@ fn addWasmArtifact(
         .os_tag = .wasi,
     });
     const name = switch (surface) {
-        .core => "om-core",
+        .core => "os-core",
         .none => unreachable,
     };
     const description = switch (surface) {
-        .core => "Build the headless om WebAssembly artifact",
+        .core => "Build the headless os WebAssembly artifact",
         .none => unreachable,
     };
 
@@ -94,7 +94,7 @@ fn addNapiArtifact(
         .none => unreachable,
     };
     const lib = b.addLibrary(.{
-        .name = "om",
+        .name = "os",
         .linkage = .dynamic,
         .root_module = b.createModule(.{
             .root_source_file = b.path(root),
@@ -120,8 +120,8 @@ fn addNapiArtifact(
     lib.root_module.addImport("node_api", node_api.createModule());
     lib.linker_allow_shlib_undefined = true;
 
-    const install = b.addInstallArtifact(lib, .{ .dest_sub_path = "om.node" });
-    const step = b.step("native", "Build the om Node-API core addon");
+    const install = b.addInstallArtifact(lib, .{ .dest_sub_path = "os.node" });
+    const step = b.step("native", "Build the os Node-API core addon");
     step.dependOn(&install.step);
     b.getInstallStep().dependOn(&install.step);
 }

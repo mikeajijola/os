@@ -2,12 +2,12 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createAgent as createFxAgent, createEngine as createFxEngine, memory } from '../om-node.js';
+import { createAgent as createFxAgent, createEngine as createFxEngine, memory } from '../os-node.js';
 
 const backend = process.argv[2] || 'native';
 const platform = backend === 'wasm'
-  ? { backend, wasm: await readFile(resolve('zig-out/bin/om-core.wasm')) }
-  : { backend, nativeAddon: resolve('zig-out/lib/om.node') };
+  ? { backend, wasm: await readFile(resolve('zig-out/bin/os-core.wasm')) }
+  : { backend, nativeAddon: resolve('zig-out/lib/os.node') };
 const definition = {
   id: 'report', version: 1, objective: 'Save and verify the report',
   obligations: [{ id: 'saved', description: 'The report was saved and verified' }],

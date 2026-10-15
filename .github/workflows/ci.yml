@@ -1,4 +1,4 @@
-name: om CI
+name: os CI
 on:
   push:
     branches: [main]
@@ -32,8 +32,8 @@ jobs:
       - run: node examples/contract.mjs
       - uses: actions/upload-artifact@v4
         with:
-          name: om-native-${{ matrix.os }}
-          path: zig-out/lib/om.node
+          name: os-native-${{ matrix.os }}
+          path: zig-out/lib/os.node
   wasm:
     name: WASM
     runs-on: ubuntu-latest
@@ -51,5 +51,5 @@ jobs:
       - run: npm run test:wasm
       - uses: actions/upload-artifact@v4
         with:
-          name: om-wasm
-          path: zig-out/bin/om-core.wasm
+          name: os-wasm
+          path: zig-out/bin/os-core.wasm

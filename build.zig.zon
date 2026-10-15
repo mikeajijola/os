@@ -1,6 +1,6 @@
 .{
-    .name = .om,
-    .fingerprint = 0x90bf7872fcd4ca3d,
+    .name = .os,
+    .fingerprint = 0x6ab04511477cbf44,
     .version = "0.1.0",
     .minimum_zig_version = "0.17.0",
     .dependencies = .{},

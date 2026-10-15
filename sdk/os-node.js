@@ -12,7 +12,7 @@ export async function createEngine(options) {
 
 const factory = createDurableAgentFactory({
   name: "createAgent",
-  label: "om agent",
+  label: "os agent",
   defaultDurability: async () => memory(),
   harness: fxHarness({ createEngine }),
 });

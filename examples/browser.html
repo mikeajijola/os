@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en"><meta charset="utf-8"><title>om contract verification</title>
-<h1>om contract verification</h1><p>A deterministic model tries to finish early. The Zig engine continues until the host verifies the saved report.</p><pre id="result">Running…</pre>
+<html lang="en"><meta charset="utf-8"><title>os contract verification</title>
+<h1>os contract verification</h1><p>A deterministic model tries to finish early. The Zig engine continues until the host verifies the saved report.</p><pre id="result">Running…</pre>
 <script type="module">
-import { createEngine } from "../sdk/om-browser.js";
+import { createEngine } from "../sdk/os-browser.js";
 import { runScenario } from "./scenario.mjs";
 try {
-  window.__omVerification = await runScenario(createEngine);
-  document.querySelector("#result").textContent = JSON.stringify(window.__omVerification, null, 2);
+  window.__osVerification = await runScenario(createEngine);
+  document.querySelector("#result").textContent = JSON.stringify(window.__osVerification, null, 2);
   document.body.dataset.state = "passed";
 } catch (error) {
   document.querySelector("#result").textContent = error.stack;

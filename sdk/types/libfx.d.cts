@@ -758,7 +758,7 @@ export type FxAgentOptions = Omit<FxSharedOptions<FxAgentEvent>, "tools"> & FxMo
   tools?: FxAgentTools;
   /** The AI Gateway credential. Without it, libfx uses `AI_GATEWAY_API_KEY`, then on Vercel the deployment's OIDC token. */
   apiKey?: string | undefined;
-  /** Where sessions live. om defaults to an in-memory store. */
+  /** Where sessions live. os defaults to an in-memory store. */
   durability?: Durability | undefined;
   /** Checkpoint bytes the agent's new sessions start from. */
   checkpoint?: FxBytes;

@@ -7,12 +7,12 @@ export { memory, wakeHandler } from "./durable.js";
 export { createMemoryPersistence, supportsJspi, listModels, FxFencedError as FencedError, FxJournalVersionError as JournalVersionError } from "./fx-sdk.js";
 
 export async function createEngine(options) {
-  return createFxEngine({ ...requireContract(options), wasm: options.wasm ?? new URL("./om-core.wasm", import.meta.url).href });
+  return createFxEngine({ ...requireContract(options), wasm: options.wasm ?? new URL("./os-core.wasm", import.meta.url).href });
 }
 
 const factory = createDurableAgentFactory({
   name: "createAgent",
-  label: "om agent",
+  label: "os agent",
   defaultDurability: async () => memory(),
   harness: fxHarness({ createEngine }),
 });
