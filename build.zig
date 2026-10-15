@@ -4,7 +4,8 @@ const WasmSurface = enum { none, core };
 const NapiSurface = enum { none, core };
 
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
+    // Native artifacts must run on other machines of the same architecture.
+    const target = b.standardTargetOptions(.{ .default_target = .{ .cpu_model = .baseline } });
     const commit = readGitCommit(b);
     addNapiArtifact(b, .core, target, commit, "0.1.0", .dev);
     addWasmArtifact(b, .core, commit, "0.1.0", .dev);
