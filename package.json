@@ -55,6 +55,7 @@
     "sdk/durable/world.mjs",
     "LICENSE",
     "NOTICE",
-    "THIRD_PARTY_NOTICES.md"
+    "THIRD_PARTY_NOTICES.md",
+    "docs/contracts.md"
   ]
 }
